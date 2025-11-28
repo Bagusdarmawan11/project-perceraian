@@ -385,14 +385,21 @@ with tab4:
             options=["(Semua)"] + [str(y) for y in years],
         )
 
-    df_table = df.copy()
+        df_table = df.copy()
     if region_filter != "(Semua)":
         df_table = df_table[df_table[REGION_COL] == region_filter]
     if year_filter != "(Semua)":
         df_table = df_table[df_table[YEAR_COL] == int(year_filter)]
 
+    # Urutkan dulu
+    df_display = df_table.sort_values([YEAR_COL, REGION_COL]).reset_index(drop=True)
+
+    # Buat index jadi 1,2,3,... dan beri nama kolom "No"
+    df_display.index = df_display.index + 1
+    df_display.index.name = "No"
+
     st.dataframe(
-        df_table.sort_values([YEAR_COL, REGION_COL]),
+        df_display,
         use_container_width=True,
     )
 
