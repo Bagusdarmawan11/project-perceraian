@@ -189,7 +189,7 @@ with tab2:
             df_year,
             geojson=geojson,
             locations=REGION_COL,
-            featureidkey="properties.NAMA_KAB",  # GANTI sesuai nama field di geojson kamu
+            featureidkey="properties.NAME_2",  # <- ini yang benar untuk GeoJSON kamu
             color=TARGET_COL,
             color_continuous_scale="Reds",
             hover_name=REGION_COL,
