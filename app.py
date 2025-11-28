@@ -243,12 +243,26 @@ with tab3:
     st.subheader("🤖 Prediksi Jumlah Perceraian")
 
     st.markdown(
-        "Sekarang kamu bisa memilih **lebih dari satu kabupaten/kota** dan "
-        "**lebih dari satu tahun** sekaligus. Model akan membuat prediksi untuk "
-        "semua kombinasi kabupaten × tahun yang kamu pilih."
+        "Pilih **kabupaten/kota**, **tahun prediksi**, dan **alasan perceraian** "
+        "yang ingin dianalisis. Model akan membuat prediksi untuk semua kombinasi "
+        "kabupaten × tahun yang kamu pilih."
     )
 
-    # Gunakan form supaya input dikumpulkan dulu baru dihitung
+    # --- Siapkan label cantik untuk faktor (alasan perceraian) ---
+    def pretty_factor_name(col: str) -> str:
+        name = col.replace("Fakor Perceraian - ", "").strip()
+        if name == "Perselisihan dan Pertengkaran Terus Menerus":
+            name = "Perselisihan / Pertengkaran"
+        elif name == "Kekerasan Dalam Rumah Tangga":
+            name = "KDRT"
+        return name
+
+    factor_display_map = {col: pretty_factor_name(col) for col in factor_cols}
+    display_to_col = {v: k for k, v in factor_display_map.items()}
+
+    factor_options_display = [factor_display_map[c] for c in factor_cols]
+
+    # Gunakan form supaya semua input dikumpulkan dulu
     with st.form("prediction_form"):
         col_left, col_right = st.columns([1.4, 1])
 
@@ -262,7 +276,7 @@ with tab3:
                 default=[regions[0]] if len(regions) > 0 else [],
             )
 
-            # Daftar tahun yang mungkin
+            # Bisa pilih lebih dari satu tahun
             min_year = int(df[YEAR_COL].min())
             default_year = int(df[YEAR_COL].max()) + 1
 
@@ -272,24 +286,17 @@ with tab3:
                 default=[default_year],
             )
 
-            st.markdown("###### Nilai Faktor-faktor Perceraian")
+            st.markdown("###### Alasan Perceraian")
             st.caption(
-                "Nilai faktor di bawah akan digunakan **sama** "
-                "untuk semua kombinasi kabupaten/tahun yang dipilih."
+                "Pilih satu atau beberapa alasan perceraian. "
+                "Alasan yang dipilih akan dianggap **aktif** dengan intensitas tipikal, "
+                "sedangkan yang tidak dipilih dianggap **tidak terjadi (0)**."
             )
 
-            factor_values = {}
-            for col in factor_cols:
-                col_min = float(df[col].min())
-                col_max = float(df[col].max())
-                col_med = float(df[col].median())
-
-                factor_values[col] = st.number_input(
-                    col,
-                    min_value=col_min,
-                    max_value=col_max,
-                    value=col_med,
-                )
+            selected_factor_labels = st.multiselect(
+                "Pilih Alasan Perceraian (bisa lebih dari satu)",
+                options=factor_options_display,
+            )
 
         with col_right:
             st.markdown("##### Hasil Prediksi")
@@ -306,12 +313,25 @@ with tab3:
                 "Pilih **minimal satu** kabupaten/kota dan **minimal satu** tahun terlebih dahulu."
             )
         else:
-            # Susun banyak baris: semua kombinasi kabupaten × tahun
+            # Ubah label alasan → nama kolom asli
+            selected_factor_cols = [display_to_col[lbl] for lbl in selected_factor_labels]
+
+            # Susun baris untuk semua kombinasi kabupaten × tahun
             rows = []
             for region in regions_input:
                 for year in years_input:
                     row = {REGION_COL: region, YEAR_COL: year}
-                    row.update(factor_values)
+
+                    # Bangun nilai faktor:
+                    # - jika dipilih → median dataset
+                    # - jika tidak dipilih → 0
+                    for col in factor_cols:
+                        if col in selected_factor_cols:
+                            value = float(df[col].median())
+                        else:
+                            value = 0.0
+                        row[col] = value
+
                     rows.append(row)
 
             input_df = pd.DataFrame(rows)[feature_cols]
@@ -330,15 +350,17 @@ with tab3:
 
             st.dataframe(result_df, use_container_width=True)
 
+            # Tampilkan info ringkas
             st.caption(
-                "Tabel di atas menampilkan prediksi jumlah perceraian untuk "
-                "setiap kombinasi **Kabupaten/Kota** dan **Tahun** yang kamu pilih."
+                "Catatan: faktor yang kamu pilih di-set ke **nilai median** dari dataset, "
+                "sedangkan faktor yang tidak dipilih di-set ke **0**."
             )
     else:
         st.info(
             "Atur input di form, lalu klik tombol **Prediksi Jumlah Perceraian** "
             "untuk melihat hasil."
         )
+
 
 
 
