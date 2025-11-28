@@ -4,9 +4,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import streamlit as st
-import joblib
 from tensorflow.keras.models import load_model
 import plotly.express as px
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 # ====== KONFIGURASI PATH ======
 BASE_DIR = Path(__file__).parent
@@ -29,9 +30,32 @@ def load_data():
 
 
 @st.cache_resource
-def load_artifacts():
-    preprocessor = joblib.load(MODELS_DIR / "preprocessor.joblib")
+def load_artifacts(df: pd.DataFrame):
+    """
+    Bangun ulang preprocessor langsung dari dataframe dan load model Keras.
+    Tidak lagi menggunakan preprocessor.joblib.
+    """
+    # Tentukan kolom fitur sama seperti saat training
+    all_cols = df.columns.tolist()
+    feature_cols_local = [c for c in all_cols if c != TARGET_COL]
+
+    categorical_cols_local = [REGION_COL]  # Kabupaten/Kota sebagai kategori
+    numeric_cols_local = [c for c in feature_cols_local if c not in categorical_cols_local]
+
+    # Preprocessor: OneHot untuk kategori, StandardScaler untuk numerik
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols_local),
+            ("num", StandardScaler(), numeric_cols_local),
+        ]
+    )
+
+    # Fit preprocessor pada seluruh data fitur
+    preprocessor.fit(df[feature_cols_local])
+
+    # Load model Keras
     model = load_model(MODELS_DIR / "model_perceraian.h5")
+
     return preprocessor, model
 
 
@@ -52,7 +76,7 @@ st.title("📊 Prediksi Perceraian Provinsi Jawa Barat")
 st.caption("Prediksi jumlah perceraian per kabupaten/kota di Provinsi Jawa Barat")
 
 df = load_data()
-preprocessor, model = load_artifacts()
+preprocessor, model = load_artifacts(df)
 
 # ====== DEFINISI KOLOM & FAKTOR ======
 all_cols = df.columns.tolist()
@@ -188,7 +212,7 @@ with tab2:
     except FileNotFoundError:
         st.error(
             "File GeoJSON untuk peta belum ditemukan.\n\n"
-            "Tambahkan file `jawa_barat_kabkota.geojson` ke folder `data/` "
+            "Tambahkan file `Kabupaten-Kota (Provinsi Jawa Barat).geojson` ke folder `data/` "
             "dan sesuaikan nama field di `featureidkey`."
         )
 
