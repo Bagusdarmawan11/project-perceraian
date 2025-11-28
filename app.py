@@ -151,9 +151,32 @@ with tab1:
         st.markdown("#### 🧩 Faktor-faktor Tertinggi")
 
         if factor_cols:
+            # Mapping nama panjang → nama singkat
+            factor_mapping = {
+                "Fakor Perceraian - Perselisihan dan Pertengkaran Terus Menerus": "Perselisihan / Pertengkaran",
+                "Fakor Perceraian - Meninggalkan Salah Satu Pihak": "Meninggalkan Salah Satu Pihak",
+                "Fakor Perceraian - Judi": "Judi",
+                "Fakor Perceraian - Dihukum Penjara": "Dihukum Penjara",
+                "Fakor Perceraian - Poligami": "Poligami",
+                "Fakor Perceraian - Kekerasan Dalam Rumah Tangga": "KDRT",
+                "Fakor Perceraian - Cacat Badan": "Cacat Badan",
+                "Fakor Perceraian - Kawin Paksa": "Kawin Paksa",
+                "Fakor Perceraian - Mabuk": "Mabuk",
+                "Fakor Perceraian - Madat": "Madat",
+                "Fakor Perceraian - Murtad": "Murtad",
+                "Fakor Perceraian - Ekonomi": "Ekonomi",
+                "Fakor Perceraian - Zina": "Zina",
+                "Fakor Perceraian - Lain-lain": "Lain-lain",
+            }
+
             factor_sum = df_year[factor_cols].sum().sort_values(ascending=False)
             factor_df = factor_sum.reset_index()
             factor_df.columns = ["Faktor", "Nilai"]
+
+            # Terapkan nama singkat (kalau tidak ada di mapping, pakai nama asli)
+            factor_df["Faktor"] = factor_df["Faktor"].map(
+                lambda x: factor_mapping.get(x, x)
+            )
 
             fig_factor = px.bar(
                 factor_df,
@@ -173,6 +196,7 @@ with tab1:
                 )
         else:
             st.warning("Tidak ada kolom faktor yang terdeteksi di dataset.")
+
 
 
 # ====== TAB 2: PETA JAWA BARAT ======
