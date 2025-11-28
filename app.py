@@ -223,74 +223,103 @@ with tab3:
     st.subheader("🤖 Prediksi Jumlah Perceraian")
 
     st.markdown(
-        "Pilih kabupaten/kota, tahun, dan nilai faktor untuk melihat prediksi jumlah perceraian "
-        "berdasarkan model deep learning yang sudah kamu latih."
+        "Sekarang kamu bisa memilih **lebih dari satu kabupaten/kota** dan "
+        "**lebih dari satu tahun** sekaligus. Model akan membuat prediksi untuk "
+        "semua kombinasi kabupaten × tahun yang kamu pilih."
     )
 
-    col_left, col_right = st.columns([1.4, 1])
+    # Gunakan form supaya input dikumpulkan dulu baru dihitung
+    with st.form("prediction_form"):
+        col_left, col_right = st.columns([1.4, 1])
 
-    with col_left:
-        st.markdown("##### Input Kondisi yang Ingin Diprediksi")
+        with col_left:
+            st.markdown("##### Input Kondisi yang Ingin Diprediksi")
 
-        region_input = st.selectbox(
-            "Pilih Kabupaten/Kota",
-            options=regions,
-        )
-
-        default_year = int(df[YEAR_COL].max()) + 1
-        year_input = st.number_input(
-            "Pilih Tahun Prediksi",
-            min_value=int(df[YEAR_COL].min()),
-            max_value=2100,
-            value=default_year,
-            step=1,
-        )
-
-        st.markdown("###### Nilai Faktor-faktor Perceraian")
-        st.caption("Default slider di-set ke **median** dari dataset.")
-
-        factor_values = {}
-        for col in factor_cols:
-            col_min = float(df[col].min())
-            col_max = float(df[col].max())
-            col_med = float(df[col].median())
-
-            factor_values[col] = st.slider(
-                col,
-                min_value=col_min,
-                max_value=col_max,
-                value=col_med,
+            # Bisa pilih lebih dari satu kabupaten/kota
+            regions_input = st.multiselect(
+                "Pilih Kabupaten/Kota",
+                options=regions,
+                default=[regions[0]] if len(regions) > 0 else [],
             )
 
-        pred_button = st.button("🔮 Prediksi Jumlah Perceraian")
+            # Daftar tahun yang mungkin
+            min_year = int(df[YEAR_COL].min())
+            default_year = int(df[YEAR_COL].max()) + 1
 
-    with col_right:
-        st.markdown("##### Hasil Prediksi")
+            years_input = st.multiselect(
+                "Pilih Tahun Prediksi",
+                options=list(range(min_year, 2101)),
+                default=[default_year],
+            )
 
-        if pred_button:
-            # susun input sesuai feature_cols
-            input_dict = {REGION_COL: region_input, YEAR_COL: year_input}
-            input_dict.update(factor_values)
+            st.markdown("###### Nilai Faktor-faktor Perceraian")
+            st.caption(
+                "Nilai faktor di bawah akan digunakan **sama** "
+                "untuk semua kombinasi kabupaten/tahun yang dipilih."
+            )
 
-            input_df = pd.DataFrame([input_dict])[feature_cols]
+            factor_values = {}
+            for col in factor_cols:
+                col_min = float(df[col].min())
+                col_max = float(df[col].max())
+                col_med = float(df[col].median())
 
+                factor_values[col] = st.number_input(
+                    col,
+                    min_value=col_min,
+                    max_value=col_max,
+                    value=col_med,
+                )
+
+        with col_right:
+            st.markdown("##### Hasil Prediksi")
+            st.caption(
+                "Klik tombol di bawah untuk menghitung prediksi "
+                "berdasarkan input di sebelah kiri."
+            )
+            submit = st.form_submit_button("🔮 Prediksi Jumlah Perceraian")
+
+    # === LOGIKA SETELAH FORM SUBMIT ===
+    if submit:
+        if not regions_input or not years_input:
+            st.warning(
+                "Pilih **minimal satu** kabupaten/kota dan **minimal satu** tahun terlebih dahulu."
+            )
+        else:
+            # Susun banyak baris: semua kombinasi kabupaten × tahun
+            rows = []
+            for region in regions_input:
+                for year in years_input:
+                    row = {REGION_COL: region, YEAR_COL: year}
+                    row.update(factor_values)
+                    rows.append(row)
+
+            input_df = pd.DataFrame(rows)[feature_cols]
+
+            # Transform dengan preprocessor
             X_p = preprocessor.transform(input_df)
             if hasattr(X_p, "toarray"):
                 X_p = X_p.toarray()
 
-            y_pred = model.predict(X_p)
-            y_pred_value = float(y_pred.flatten()[0])
+            # Prediksi
+            y_pred = model.predict(X_p).flatten()
 
-            st.metric(
-                "Perkiraan Jumlah Perceraian",
-                f"{y_pred_value:,.0f} kasus",
-            )
+            # Susun hasil dalam tabel
+            result_df = input_df[[REGION_COL, YEAR_COL]].copy()
+            result_df["Prediksi Jumlah Perceraian"] = [float(v) for v in y_pred]
+
+            st.dataframe(result_df, use_container_width=True)
+
             st.caption(
-                f"Prediksi untuk **{region_input}** pada tahun **{int(year_input)}** "
-                "berdasarkan nilai faktor yang kamu atur di sebelah kiri."
+                "Tabel di atas menampilkan prediksi jumlah perceraian untuk "
+                "setiap kombinasi **Kabupaten/Kota** dan **Tahun** yang kamu pilih."
             )
-        else:
-            st.info("Isi input di sebelah kiri lalu klik tombol **Prediksi** untuk melihat hasil.")
+    else:
+        st.info(
+            "Atur input di form, lalu klik tombol **Prediksi Jumlah Perceraian** "
+            "untuk melihat hasil."
+        )
+
 
 
 # ====== TAB 4: TABEL DATA ======
