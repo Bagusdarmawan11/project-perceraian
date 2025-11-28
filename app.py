@@ -53,8 +53,9 @@ def load_artifacts(df: pd.DataFrame):
     # Fit preprocessor pada seluruh data fitur
     preprocessor.fit(df[feature_cols_local])
 
-    # Load model Keras
-    model = load_model(MODELS_DIR / "model_perceraian.h5")
+    # Load model Keras untuk inference saja (tanpa compile)
+    model_path = MODELS_DIR / "model_perceraian.h5"
+    model = load_model(model_path, compile=False)
 
     return preprocessor, model
 
